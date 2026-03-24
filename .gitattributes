@@ -1,0 +1,2 @@
+# Treat the SQLite database as a binary file
+*.db binary
