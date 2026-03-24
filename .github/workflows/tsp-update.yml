@@ -1,0 +1,45 @@
+name: TSP Daily Update
+
+on:
+  schedule:
+    # Run weekdays at 11:30 PM UTC (≈ 7:30 PM Eastern)
+    # TSP publishes prices after ~7 PM ET on business days
+    - cron: '30 23 * * 1-5'
+  workflow_dispatch:  # Allow manual trigger from GitHub UI
+
+permissions:
+  contents: write  # Needed to commit the updated DB back to the repo
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run initial load (if DB doesn't exist yet)
+        run: |
+          if [ ! -f tsp_fund_prices.db ]; then
+            echo "No database found — running initial load..."
+            python tsp_initial_load.py
+          else
+            echo "Database exists — skipping initial load."
+          fi
+
+      - name: Run daily update
+        run: python tsp_daily_update.py
+
+      - name: Commit and push updated database
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tsp_fund_prices.db
+          # Only commit if there are changes
+          git diff --cached --quiet || git commit -m "Update TSP prices $(date -u +%Y-%m-%d)"
+          git push
